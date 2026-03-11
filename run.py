@@ -73,7 +73,7 @@ def run(args: dict, context: dict) -> str:
 
 
 def load_config() -> dict:
-    """Load config.toml from the skill directory (where run.py lives)."""
+    """Load config.toml from the tool directory (where run.py lives)."""
     config_path = Path(__file__).parent / "config.toml"
     if not config_path.exists():
         return {}
@@ -152,7 +152,7 @@ def build_command(args: dict, config: dict, mode: str) -> list[str]:
 def build_env(api_key: str, provider: str, config: dict) -> dict[str, str]:
     """Build environment for the aider subprocess.
 
-    The skill subprocess gets a clean env from kiso (only PATH + KISO_SKILL_AIDER_API_KEY).
+    The tool subprocess gets a clean env from kiso (only PATH + KISO_SKILL_AIDER_API_KEY).
     Aider needs more: HOME (for git), and the provider-specific API key env var.
     """
     env = {

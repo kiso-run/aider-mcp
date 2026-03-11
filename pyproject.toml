@@ -1,7 +1,7 @@
 [project]
-name = "skill-aider"
+name = "tool-aider"
 version = "0.1.0"
-description = "Code editing skill for Kiso using aider"
+description = "Code editing tool for Kiso using aider"
 requires-python = ">=3.11"
 dependencies = [
     "aider-chat>=0.82",

@@ -1,4 +1,4 @@
-"""Shared fixtures for skill-aider tests."""
+"""Shared fixtures for tool-aider tests."""
 
 import json
 import os
@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-SKILL_DIR = Path(__file__).parent.parent
-RUN_PY = SKILL_DIR / "run.py"
+TOOL_DIR = Path(__file__).parent.parent
+RUN_PY = TOOL_DIR / "run.py"
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ def minimal_stdin_data():
 # Helper: run run.py as subprocess
 # ---------------------------------------------------------------------------
 
-def run_skill(stdin_data: dict, env_extra: dict | None = None, mock_aider: Path | None = None) -> subprocess.CompletedProcess:
+def run_tool(stdin_data: dict, env_extra: dict | None = None, mock_aider: Path | None = None) -> subprocess.CompletedProcess:
     """Run run.py as a subprocess with injected stdin and env."""
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),

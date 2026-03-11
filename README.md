@@ -1,14 +1,14 @@
-# skill-aider
+# tool-aider
 
-Code editing skill for [kiso](https://github.com/kiso-run/core), powered by [aider](https://aider.chat). Supports any LLM backend via OpenRouter, OpenAI, Anthropic, DeepSeek, or a custom endpoint.
+Code editing tool for [kiso](https://github.com/kiso-run/core), powered by [aider](https://aider.chat). Supports any LLM backend via OpenRouter, OpenAI, Anthropic, DeepSeek, or a custom endpoint.
 
 ## Installation
 
 ```sh
-kiso skill install aider
+kiso tool install aider
 ```
 
-This clones the repo to `~/.kiso/skills/aider/`, runs `uv sync`, and copies `config.example.toml` → `config.toml`.
+This clones the repo to `~/.kiso/tools/aider/`, runs `uv sync`, and copies `config.example.toml` → `config.toml`.
 
 ## Configuration
 
@@ -31,7 +31,7 @@ kiso env reload
 
 ### Config file
 
-Edit `~/.kiso/skills/aider/config.toml` to set the provider, models, and mode. The defaults use OpenRouter with architect mode (GLM-5 as architect, DeepSeek v3.2 as editor).
+Edit `~/.kiso/tools/aider/config.toml` to set the provider, models, and mode. The defaults use OpenRouter with architect mode (GLM-5 as architect, DeepSeek v3.2 as editor).
 
 ## Supported providers
 
@@ -53,7 +53,7 @@ Edit `~/.kiso/skills/aider/config.toml` to set the provider, models, and mode. T
 
 ## How it works
 
-1. The kiso planner decides to use the `aider` skill and provides a message and file list
+1. The kiso planner decides to use the `aider` tool and provides a message and file list
 2. `run.py` is invoked as a subprocess with JSON on stdin
 3. aider edits files in the session workspace and commits the changes
 4. The output (aider's response) is returned to the kiso reviewer
