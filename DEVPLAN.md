@@ -51,3 +51,94 @@ Provides architect, code, and ask modes for LLM-driven code changes within kiso 
 - [x] `test_run.py`: `test_success_code_mode_header` — verify "Mode: code" in output
 - [x] `test_run_aider.py`: `run_aider()` unit tests — success, failure, CompletedProcess type
 - [x] `test_config.py`: `test_all_known_providers_in_map` — verify all providers in `_PROVIDER_KEY_VARS`
+
+### M5 — Functional tests (subprocess contract)
+
+**Problem:** `test_run.py` has 3 integration tests via subprocess but they
+only test error paths (missing API key, invalid mode, non-empty stdout).
+No test exercises a **successful end-to-end flow**: JSON stdin → `run()` →
+aider subprocess (mocked) → formatted stdout + exit 0. The `run_tool`
+helper and `mock_aider_ok` fixture exist in conftest but are barely used.
+
+**Files:** `tests/test_functional.py` (new)
+
+**Change:**
+
+1. **Happy path — architect mode:**
+   - stdin: full data with message + files
+   - Mock aider binary (mock_aider_ok) prints `"Applied changes to auth.py"`
+   - Assert: stdout contains `Mode: architect`, `Files:`, and `Applied changes`
+   - Assert: exit code 0
+
+2. **Happy path — code mode:**
+   - stdin: message only, mode=code
+   - Assert: stdout contains `Mode: code`, exit code 0
+
+3. **Happy path — ask mode with read-only files:**
+   - stdin: message + read_only_files, mode=ask
+   - Assert: stdout contains `Mode: ask`, `Read-only:`, exit code 0
+
+4. **Error — aider binary fails:**
+   - Use `mock_aider_fail` fixture (exits 1, stderr)
+   - Assert: exit code 1, stdout still contains header
+
+5. **Error — missing API key (no env var):**
+   - Don't set `KISO_SKILL_AIDER_API_KEY`
+   - Assert: stdout contains `API key`, exit code 1
+
+6. **Error — invalid mode:**
+   - stdin: mode="destroy"
+   - Assert: stdout contains `unknown mode`, exit code 1
+
+7. **Error — aider binary not found:**
+   - Set PATH to empty (no aider binary)
+   - Assert: stdout contains `not found`, exit code 1
+
+8. **Malformed input — invalid JSON:**
+   - Send `"not json"` on stdin
+   - Assert: exit code 1
+
+9. **Malformed input — missing message key:**
+   - stdin: `{args: {}, ...}` (no `message`)
+   - Assert: exit code 1 (KeyError)
+
+10. **ANSI stripping in output:**
+    - Mock aider prints ANSI escape codes
+    - Assert: stdout does NOT contain escape sequences
+
+- [ ] Implement all 10 functional tests using `run_tool` helper + mock aider fixtures
+- [ ] All tests pass (unit + functional)
+
+---
+
+### M6 — SIGTERM graceful shutdown test
+
+**Problem:** `run_aider()` registers a SIGTERM handler that forwards the
+signal to the aider child process. No test verifies this behavior:
+- Parent receives SIGTERM → child gets SIGTERM → both exit cleanly
+- If child doesn't respond within 10s → parent sends SIGKILL
+
+**Files:** `tests/test_functional.py` (add)
+
+**Change:**
+
+1. Create a mock aider that sleeps 30s (simulates long-running edit)
+2. Start `run.py` as subprocess
+3. Send SIGTERM to parent after 1s
+4. Assert: parent exits 0 within 12s
+5. Assert: no orphan child process
+
+- [ ] Create slow mock aider fixture
+- [ ] Implement SIGTERM forwarding test
+- [ ] Passes on Linux
+
+---
+
+## Milestone Checklist
+
+- [x] **M1** — Core implementation
+- [x] **M2** — Config + provider support
+- [x] **M3** — Test suite
+- [x] **M4** — Complete test coverage
+- [ ] **M5** — Functional tests (subprocess contract)
+- [ ] **M6** — SIGTERM graceful shutdown test
