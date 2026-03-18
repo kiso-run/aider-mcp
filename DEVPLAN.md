@@ -142,3 +142,34 @@ signal to the aider child process. No test verifies this behavior:
 - [x] **M4** — Complete test coverage
 - [x] **M5** — Functional tests (subprocess contract)
 - [x] **M6** — SIGTERM graceful shutdown test
+- [ ] **M7** — kiso.toml validation test
+- [ ] **M8** — Config error handling
+
+### M7 — kiso.toml validation test
+
+**Problem:** No test verifies `kiso.toml` consistency.
+
+**Files:** `tests/test_manifest.py` (new)
+
+**Change:**
+
+1. Parse `kiso.toml`, extract declared arg names
+2. Verify each appears in `run.py`
+3. Verify TOML structure
+
+- [ ] Implement manifest validation test
+
+---
+
+### M8 — Config error handling: malformed TOML
+
+**Problem:** `load_config()` reads config.toml but no test covers malformed files.
+
+**Files:** `tests/test_config.py` (add)
+
+**Change:**
+
+1. Create malformed config.toml → verify `load_config()` raises `TOMLDecodeError`
+2. Config.toml with extra unknown keys → verify they're silently ignored
+
+- [ ] Implement config error tests
