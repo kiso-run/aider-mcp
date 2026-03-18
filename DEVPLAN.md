@@ -52,7 +52,7 @@ Provides architect, code, and ask modes for LLM-driven code changes within kiso 
 - [x] `test_run_aider.py`: `run_aider()` unit tests — success, failure, CompletedProcess type
 - [x] `test_config.py`: `test_all_known_providers_in_map` — verify all providers in `_PROVIDER_KEY_VARS`
 
-### M5 — Functional tests (subprocess contract)
+### M5 — Functional tests (subprocess contract) ✅
 
 **Problem:** `test_run.py` has 3 integration tests via subprocess but they
 only test error paths (missing API key, invalid mode, non-empty stdout).
@@ -106,12 +106,12 @@ helper and `mock_aider_ok` fixture exist in conftest but are barely used.
     - Mock aider prints ANSI escape codes
     - Assert: stdout does NOT contain escape sequences
 
-- [ ] Implement all 10 functional tests using `run_tool` helper + mock aider fixtures
-- [ ] All tests pass (unit + functional)
+- [x] Implement all 10 functional tests using `run_tool` helper + mock aider fixtures
+- [x] All tests pass (unit + functional)
 
 ---
 
-### M6 — SIGTERM graceful shutdown test
+### M6 — SIGTERM graceful shutdown test ✅
 
 **Problem:** `run_aider()` registers a SIGTERM handler that forwards the
 signal to the aider child process. No test verifies this behavior:
@@ -128,9 +128,9 @@ signal to the aider child process. No test verifies this behavior:
 4. Assert: parent exits 0 within 12s
 5. Assert: no orphan child process
 
-- [ ] Create slow mock aider fixture
-- [ ] Implement SIGTERM forwarding test
-- [ ] Passes on Linux
+- [x] Create slow mock aider fixture
+- [x] Implement SIGTERM forwarding test
+- [x] Passes on Linux
 
 ---
 
@@ -140,5 +140,5 @@ signal to the aider child process. No test verifies this behavior:
 - [x] **M2** — Config + provider support
 - [x] **M3** — Test suite
 - [x] **M4** — Complete test coverage
-- [ ] **M5** — Functional tests (subprocess contract)
-- [ ] **M6** — SIGTERM graceful shutdown test
+- [x] **M5** — Functional tests (subprocess contract)
+- [x] **M6** — SIGTERM graceful shutdown test
