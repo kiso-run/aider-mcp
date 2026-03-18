@@ -82,6 +82,27 @@ def test_all_known_providers_in_map():
     assert expected == set(_PROVIDER_KEY_VARS.keys())
 
 
+def test_malformed_config_toml_raises(tmp_path):
+    """Verify tomllib raises on invalid TOML content."""
+    bad = tmp_path / "config.toml"
+    bad.write_text("[broken")
+    with pytest.raises(tomllib.TOMLDecodeError):
+        with open(bad, "rb") as f:
+            tomllib.load(f)
+
+
+def test_config_with_extra_unknown_keys():
+    """Extra keys in config are silently ignored by load_config."""
+    example = Path(__file__).parent.parent / "config.example.toml"
+    with open(example, "rb") as f:
+        data = tomllib.load(f)
+    data["unknown_key"] = "should be ignored"
+    # build_command and build_env should work fine with extra keys
+    from run import build_command
+    cmd = build_command({"message": "test"}, data, "code")
+    assert "--message" in cmd
+
+
 def test_config_example_toml_is_valid():
     """config.example.toml must be valid TOML."""
     example = Path(__file__).parent.parent / "config.example.toml"

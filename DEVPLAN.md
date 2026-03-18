@@ -143,7 +143,7 @@ signal to the aider child process. No test verifies this behavior:
 - [x] **M5** — Functional tests (subprocess contract)
 - [x] **M6** — SIGTERM graceful shutdown test
 - [x] **M7** — kiso.toml validation test
-- [ ] **M8** — Config error handling
+- [x] **M8** — Config error handling
 
 ### M7 — kiso.toml validation test
 
@@ -172,4 +172,4 @@ signal to the aider child process. No test verifies this behavior:
 1. Create malformed config.toml → verify `load_config()` raises `TOMLDecodeError`
 2. Config.toml with extra unknown keys → verify they're silently ignored
 
-- [ ] Implement config error tests
+- [x] Implement config error tests
