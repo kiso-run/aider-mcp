@@ -142,7 +142,7 @@ signal to the aider child process. No test verifies this behavior:
 - [x] **M4** — Complete test coverage
 - [x] **M5** — Functional tests (subprocess contract)
 - [x] **M6** — SIGTERM graceful shutdown test
-- [ ] **M7** — kiso.toml validation test
+- [x] **M7** — kiso.toml validation test
 - [ ] **M8** — Config error handling
 
 ### M7 — kiso.toml validation test
@@ -157,7 +157,7 @@ signal to the aider child process. No test verifies this behavior:
 2. Verify each appears in `run.py`
 3. Verify TOML structure
 
-- [ ] Implement manifest validation test
+- [x] Implement manifest validation test
 
 ---
 
