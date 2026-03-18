@@ -75,6 +75,13 @@ def test_full_config_values(full_config):
     assert full_config["commit_language"] == "en"
 
 
+def test_all_known_providers_in_map():
+    """Verify _PROVIDER_KEY_VARS has entries for all expected providers."""
+    from run import _PROVIDER_KEY_VARS
+    expected = {"openrouter", "openai", "anthropic", "deepseek"}
+    assert expected == set(_PROVIDER_KEY_VARS.keys())
+
+
 def test_config_example_toml_is_valid():
     """config.example.toml must be valid TOML."""
     example = Path(__file__).parent.parent / "config.example.toml"

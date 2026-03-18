@@ -115,6 +115,32 @@ def test_aider_failure_exits_1(monkeypatch):
     assert exc.value.code == 1
 
 
+def test_aider_failure_with_output_shows_output(monkeypatch, capsys):
+    """When aider exits 1 but produces stdout, that output should appear in the printed result."""
+    monkeypatch.setenv("KISO_SKILL_AIDER_API_KEY", "key")
+    args = {"message": "refactor"}
+    with patch("run.load_config", return_value={"provider": "openrouter"}), \
+         patch.object(Path, "exists", return_value=True), \
+         patch("run.run_aider", return_value=_fail(stdout="Partial changes applied.")):
+        with pytest.raises(SystemExit) as exc:
+            run(args, _ctx(args))
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "Partial changes applied." in captured.out
+
+
+def test_success_code_mode_header(monkeypatch):
+    """Verify 'Mode: code' appears in output for code mode."""
+    monkeypatch.setenv("KISO_SKILL_AIDER_API_KEY", "key")
+    args = {"message": "fix bug", "mode": "code", "files": "app.py"}
+    with patch("run.load_config", return_value={"provider": "openrouter"}), \
+         patch.object(Path, "exists", return_value=True), \
+         patch("run.run_aider", return_value=_ok("Bug fixed.")):
+        result = run(args, _ctx(args))
+    assert "Mode: code" in result
+    assert "Bug fixed." in result
+
+
 def test_context_fields_accepted(monkeypatch):
     """run() accepts a full context dict without errors."""
     monkeypatch.setenv("KISO_SKILL_AIDER_API_KEY", "key")
