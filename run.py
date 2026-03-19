@@ -30,9 +30,9 @@ def run(args: dict, context: dict) -> str:
         sys.exit(1)
 
     # Get API key
-    api_key = os.environ.get("KISO_SKILL_AIDER_API_KEY", "")
+    api_key = os.environ.get("KISO_TOOL_AIDER_API_KEY", "")
     if not api_key:
-        print("KISO_SKILL_AIDER_API_KEY is not set", file=sys.stderr)
+        print("KISO_TOOL_AIDER_API_KEY is not set", file=sys.stderr)
         print("Aider failed: API key not configured.")
         sys.exit(1)
 
@@ -152,7 +152,7 @@ def build_command(args: dict, config: dict, mode: str) -> list[str]:
 def build_env(api_key: str, provider: str, config: dict) -> dict[str, str]:
     """Build environment for the aider subprocess.
 
-    The tool subprocess gets a clean env from kiso (only PATH + KISO_SKILL_AIDER_API_KEY).
+    The tool subprocess gets a clean env from kiso (only PATH + KISO_TOOL_AIDER_API_KEY).
     Aider needs more: HOME (for git), and the provider-specific API key env var.
     """
     env = {
@@ -160,7 +160,7 @@ def build_env(api_key: str, provider: str, config: dict) -> dict[str, str]:
         "HOME": pwd.getpwuid(os.getuid()).pw_dir,
     }
 
-    # Map KISO_SKILL_AIDER_API_KEY → provider's expected env var
+    # Map KISO_TOOL_AIDER_API_KEY → provider's expected env var
     key_var = _PROVIDER_KEY_VARS.get(provider, "OPENAI_API_KEY")
     env[key_var] = api_key
 

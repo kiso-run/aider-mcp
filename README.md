@@ -18,14 +18,14 @@ Use the same key as kiso:
 
 ```sh
 # Copy the value from KISO_LLM_API_KEY (do not share the key itself)
-kiso env set KISO_SKILL_AIDER_API_KEY "<your-key>"
+kiso env set KISO_TOOL_AIDER_API_KEY "<your-key>"
 kiso env reload
 ```
 
 Or set a separate key:
 
 ```sh
-kiso env set KISO_SKILL_AIDER_API_KEY "<aider-specific-key>"
+kiso env set KISO_TOOL_AIDER_API_KEY "<aider-specific-key>"
 kiso env reload
 ```
 

@@ -83,7 +83,7 @@ helper and `mock_aider_ok` fixture exist in conftest but are barely used.
    - Assert: exit code 1, stdout still contains header
 
 5. **Error — missing API key (no env var):**
-   - Don't set `KISO_SKILL_AIDER_API_KEY`
+   - Don't set `KISO_TOOL_AIDER_API_KEY`
    - Assert: stdout contains `API key`, exit code 1
 
 6. **Error — invalid mode:**

@@ -85,7 +85,7 @@ def run_tool(stdin_data: dict, env_extra: dict | None = None, mock_aider: Path |
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": os.environ.get("HOME", "/root"),
-        "KISO_SKILL_AIDER_API_KEY": "test-api-key",
+        "KISO_TOOL_AIDER_API_KEY": "test-api-key",
     }
     if env_extra:
         env.update(env_extra)

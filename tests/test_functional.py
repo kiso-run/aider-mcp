@@ -52,7 +52,7 @@ def _run(stdin_data: dict, env_override: dict | None = None) -> subprocess.Compl
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": os.environ.get("HOME", "/root"),
-        "KISO_SKILL_AIDER_API_KEY": "test-api-key",
+        "KISO_TOOL_AIDER_API_KEY": "test-api-key",
     }
     if env_override:
         env.update(env_override)
@@ -70,7 +70,7 @@ def _run_raw(stdin_text: str, env_override: dict | None = None) -> subprocess.Co
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": os.environ.get("HOME", "/root"),
-        "KISO_SKILL_AIDER_API_KEY": "test-api-key",
+        "KISO_TOOL_AIDER_API_KEY": "test-api-key",
     }
     if env_override:
         env.update(env_override)
@@ -130,7 +130,7 @@ def test_aider_failure(_swap_aider, full_stdin_data):
 
 def test_missing_api_key(full_stdin_data, _swap_aider):
     _swap_aider("#!/bin/sh\necho 'should not run'\n")
-    # Run without KISO_SKILL_AIDER_API_KEY in env
+    # Run without KISO_TOOL_AIDER_API_KEY in env
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": os.environ.get("HOME", "/root"),
@@ -223,7 +223,7 @@ def test_sigterm_forwarding(tmp_path, full_stdin_data, _swap_aider):
         env={
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
             "HOME": os.environ.get("HOME", "/root"),
-            "KISO_SKILL_AIDER_API_KEY": "test-api-key",
+            "KISO_TOOL_AIDER_API_KEY": "test-api-key",
         },
     )
     proc.stdin.write(json.dumps(full_stdin_data))

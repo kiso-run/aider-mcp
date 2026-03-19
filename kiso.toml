@@ -20,7 +20,7 @@ mode = { type = "string", required = false, description = "'architect' (default)
 read_only_files = { type = "string", required = false, description = "comma-separated files for read-only context" }
 
 [kiso.tool.env]
-api_key = { required = true }   # → KISO_SKILL_AIDER_API_KEY
+api_key = { required = true }   # → KISO_TOOL_AIDER_API_KEY
 
 [kiso.deps]
 python = ">=3.11"
