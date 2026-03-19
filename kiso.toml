@@ -6,6 +6,7 @@ description = "Code editing with aider"
 
 [kiso.tool]
 summary = "Edit code, refactor, fix bugs, or ask questions about a codebase"
+consumes = ["code"]
 usage_guide = """\
 Use aider for code editing, refactoring, bug fixes, and code questions. \
 In "architect" mode (default), a planning model designs changes and an \

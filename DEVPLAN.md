@@ -184,3 +184,15 @@ signal to the aider child process. No test verifies this behavior:
 
 ### env var prefix fix ✅
 - [x] Fixed `KISO_SKILL_AIDER_` → `KISO_TOOL_AIDER_` in run.py, kiso.toml, live tests
+
+---
+
+### M9 — Declare `consumes` in kiso.toml (core M826)
+
+**Context:** Core M826 adds a `consumes` field to `[kiso.tool]` in kiso.toml. The planner uses
+this to auto-route session workspace files to the right tool. Vocabulary: `image`, `document`,
+`audio`, `video`, `code`, `web_page`.
+
+**Changes:**
+- [x] Add `consumes = ["code"]` to `[kiso.tool]` in kiso.toml
+- [ ] Enrich `usage_guide` with concrete file path examples for `files` and `read_only_files` args
