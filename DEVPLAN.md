@@ -173,3 +173,8 @@ signal to the aider child process. No test verifies this behavior:
 2. Config.toml with extra unknown keys → verify they're silently ignored
 
 - [x] Implement config error tests
+
+## History (from core plugins.md)
+
+### env var prefix fix ✅
+- [x] Fixed `KISO_SKILL_AIDER_` → `KISO_TOOL_AIDER_` in run.py, kiso.toml, live tests
