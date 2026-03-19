@@ -178,7 +178,7 @@ signal to the aider child process. No test verifies this behavior:
 
 - [x] `run.py`: try `KISO_TOOL_AIDER_API_KEY` first, fall back to `KISO_LLM_API_KEY`
 - [x] Error message updated to mention both env vars
-- [ ] Update kiso.toml comment + README (deferred — preset README already updated)
+- [x] Update kiso.toml comment + README (deferred — preset README already updated)
 
 ## History (from core plugins.md)
 

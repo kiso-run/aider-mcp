@@ -14,15 +14,9 @@ This clones the repo to `~/.kiso/tools/aider/`, runs `uv sync`, and copies `conf
 
 ### API key
 
-Use the same key as kiso:
+If `KISO_LLM_API_KEY` is already set (the shared kiso LLM key), aider uses it automatically -- no extra configuration needed.
 
-```sh
-# Copy the value from KISO_LLM_API_KEY (do not share the key itself)
-kiso env set KISO_TOOL_AIDER_API_KEY "<your-key>"
-kiso env reload
-```
-
-Or set a separate key:
+To use a separate key for aider (overrides the shared key):
 
 ```sh
 kiso env set KISO_TOOL_AIDER_API_KEY "<aider-specific-key>"
