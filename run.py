@@ -29,10 +29,10 @@ def run(args: dict, context: dict) -> str:
         print(f"Aider failed: unknown mode '{mode}'")
         sys.exit(1)
 
-    # Get API key
-    api_key = os.environ.get("KISO_TOOL_AIDER_API_KEY", "")
+    # Get API key — prefer tool-specific, fall back to kiso's shared LLM key
+    api_key = os.environ.get("KISO_TOOL_AIDER_API_KEY") or os.environ.get("KISO_LLM_API_KEY", "")
     if not api_key:
-        print("KISO_TOOL_AIDER_API_KEY is not set", file=sys.stderr)
+        print("No API key found. Set KISO_TOOL_AIDER_API_KEY or KISO_LLM_API_KEY.", file=sys.stderr)
         print("Aider failed: API key not configured.")
         sys.exit(1)
 
