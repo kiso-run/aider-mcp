@@ -174,6 +174,16 @@ signal to the aider child process. No test verifies this behavior:
 
 - [x] Implement config error tests
 
+## M-next — Fallback to KISO_LLM_API_KEY when KISO_TOOL_AIDER_API_KEY not set
+
+**Problem:** Aider requires `KISO_TOOL_AIDER_API_KEY` to be set separately. But kiso already has `KISO_LLM_API_KEY` (OpenRouter) configured. Other tools (transcriber, ocr) fall back to it automatically — aider should too.
+
+**Fix:**
+- [ ] In `run.py`, when reading the API key: try `KISO_TOOL_AIDER_API_KEY` first, fall back to `KISO_LLM_API_KEY` if not set
+- [ ] Update kiso.toml `[kiso.tool.env]` comment to note the fallback
+- [ ] Update README: "Uses KISO_LLM_API_KEY by default. Override with KISO_TOOL_AIDER_API_KEY for a different provider."
+- [ ] Test: API key resolution with fallback
+
 ## History (from core plugins.md)
 
 ### env var prefix fix ✅
