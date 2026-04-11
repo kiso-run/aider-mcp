@@ -1,10 +1,10 @@
 [kiso]
-type = "tool"
+type = "wrapper"
 name = "aider"
 version = "0.1.0"
 description = "Code editing with aider"
 
-[kiso.tool]
+[kiso.wrapper]
 summary = "Edit code, refactor, fix bugs, or ask questions about a codebase"
 consumes = ["code"]
 usage_guide = """\
@@ -14,13 +14,13 @@ editor model applies them. Use "ask" mode to get answers about code \
 without making changes. Always specify the relevant files. \
 The workspace is the session directory."""
 
-[kiso.tool.args]
+[kiso.wrapper.args]
 message = { type = "string", required = true, description = "instruction or question for aider" }
 files = { type = "string", required = false, description = "comma-separated file paths to edit" }
 mode = { type = "string", required = false, description = "'architect' (default), 'code', or 'ask'" }
 read_only_files = { type = "string", required = false, description = "comma-separated files for read-only context" }
 
-[kiso.tool.env]
+[kiso.wrapper.env]
 api_key = { required = false }  # → KISO_TOOL_AIDER_API_KEY (falls back to KISO_LLM_API_KEY)
 
 [kiso.deps]

@@ -80,12 +80,12 @@ def minimal_stdin_data():
 # Helper: run run.py as subprocess
 # ---------------------------------------------------------------------------
 
-def run_tool(stdin_data: dict, env_extra: dict | None = None, mock_aider: Path | None = None) -> subprocess.CompletedProcess:
+def run_wrapper(stdin_data: dict, env_extra: dict | None = None, mock_aider: Path | None = None) -> subprocess.CompletedProcess:
     """Run run.py as a subprocess with injected stdin and env."""
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "HOME": os.environ.get("HOME", "/root"),
-        "KISO_TOOL_AIDER_API_KEY": "test-api-key",
+        "KISO_WRAPPER_AIDER_API_KEY": "test-api-key",
     }
     if env_extra:
         env.update(env_extra)

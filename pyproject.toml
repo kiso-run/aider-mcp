@@ -1,5 +1,5 @@
 [project]
-name = "tool-aider"
+name = "wrapper-aider"
 version = "0.1.0"
 description = "Code editing tool for Kiso using aider"
 requires-python = ">=3.11"

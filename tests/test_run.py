@@ -38,7 +38,7 @@ def _fail(stdout: str = "", stderr: str = "aider error") -> subprocess.Completed
 # ---------------------------------------------------------------------------
 
 def test_invalid_mode_exits_1(monkeypatch):
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "hi", "mode": "bad"}
     with patch("run.load_config", return_value={}), \
          patch.object(Path, "exists", return_value=True):
@@ -48,7 +48,7 @@ def test_invalid_mode_exits_1(monkeypatch):
 
 
 def test_missing_api_key_exits_1(monkeypatch):
-    monkeypatch.delenv("KISO_TOOL_AIDER_API_KEY", raising=False)
+    monkeypatch.delenv("KISO_WRAPPER_AIDER_API_KEY", raising=False)
     args = {"message": "hi"}
     with patch("run.load_config", return_value={}), \
          patch.object(Path, "exists", return_value=True):
@@ -58,7 +58,7 @@ def test_missing_api_key_exits_1(monkeypatch):
 
 
 def test_missing_binary_exits_1(monkeypatch):
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "hi"}
     with patch("run.load_config", return_value={}), \
          patch.object(Path, "exists", return_value=False):
@@ -68,7 +68,7 @@ def test_missing_binary_exits_1(monkeypatch):
 
 
 def test_success_returns_string(monkeypatch):
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "refactor auth", "files": "src/auth.py"}
     with patch("run.load_config", return_value={"provider": "openrouter"}), \
          patch.object(Path, "exists", return_value=True), \
@@ -81,7 +81,7 @@ def test_success_returns_string(monkeypatch):
 
 
 def test_success_ask_mode_with_read_only(monkeypatch):
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "explain", "mode": "ask", "read_only_files": "src/models.py"}
     with patch("run.load_config", return_value={"provider": "openrouter"}), \
          patch.object(Path, "exists", return_value=True), \
@@ -93,7 +93,7 @@ def test_success_ask_mode_with_read_only(monkeypatch):
 
 
 def test_success_no_files_no_read_only(monkeypatch):
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "what does main do?", "mode": "ask"}
     with patch("run.load_config", return_value={"provider": "openrouter"}), \
          patch.object(Path, "exists", return_value=True), \
@@ -105,7 +105,7 @@ def test_success_no_files_no_read_only(monkeypatch):
 
 
 def test_aider_failure_exits_1(monkeypatch):
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "refactor"}
     with patch("run.load_config", return_value={"provider": "openrouter"}), \
          patch.object(Path, "exists", return_value=True), \
@@ -117,7 +117,7 @@ def test_aider_failure_exits_1(monkeypatch):
 
 def test_aider_failure_with_output_shows_output(monkeypatch, capsys):
     """When aider exits 1 but produces stdout, that output should appear in the printed result."""
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "refactor"}
     with patch("run.load_config", return_value={"provider": "openrouter"}), \
          patch.object(Path, "exists", return_value=True), \
@@ -131,7 +131,7 @@ def test_aider_failure_with_output_shows_output(monkeypatch, capsys):
 
 def test_success_code_mode_header(monkeypatch):
     """Verify 'Mode: code' appears in output for code mode."""
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "fix bug", "mode": "code", "files": "app.py"}
     with patch("run.load_config", return_value={"provider": "openrouter"}), \
          patch.object(Path, "exists", return_value=True), \
@@ -143,7 +143,7 @@ def test_success_code_mode_header(monkeypatch):
 
 def test_context_fields_accepted(monkeypatch):
     """run() accepts a full context dict without errors."""
-    monkeypatch.setenv("KISO_TOOL_AIDER_API_KEY", "key")
+    monkeypatch.setenv("KISO_WRAPPER_AIDER_API_KEY", "key")
     args = {"message": "fix bug", "files": "app.py"}
     context = {
         "args": args,
@@ -187,7 +187,7 @@ def test_contract_invalid_mode(minimal_stdin_data):
         [sys.executable, RUN_PY],
         input=json.dumps(data),
         capture_output=True, text=True,
-        env={**_base_env(), "KISO_TOOL_AIDER_API_KEY": "test-key"},
+        env={**_base_env(), "KISO_WRAPPER_AIDER_API_KEY": "test-key"},
     )
     assert result.returncode == 1
     assert "invalid" in result.stdout
