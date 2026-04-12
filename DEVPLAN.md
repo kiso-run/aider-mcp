@@ -144,6 +144,7 @@ signal to the aider child process. No test verifies this behavior:
 - [x] **M6** — SIGTERM graceful shutdown test
 - [x] **M7** — kiso.toml validation test
 - [x] **M8** — Config error handling
+- [ ] **M10** — Retry aider on OpenRouter per-request affordable-cap with the provider-reported ceiling
 
 ### M7 — kiso.toml validation test
 
@@ -196,3 +197,160 @@ this to auto-route session workspace files to the right tool. Vocabulary: `image
 **Changes:**
 - [x] Add `consumes = ["code"]` to `[kiso.tool]` in kiso.toml
 - [ ] Enrich `usage_guide` with concrete file path examples for `files` and `read_only_files` args
+
+---
+
+### M10 — Retry aider on OpenRouter per-request affordable-cap with the provider-reported ceiling
+
+**Problem.** Two kiso-run/core functional tests
+(`TestF17FullPipeline::test_screenshot_ocr_aider_exec_msg` and
+`TestF29AiderWriteCode::test_aider_write_script`) were failing on
+the 2026-04-12 post-core-M1329 full-matrix run. Both share a
+single root cause that originates in this wrapper.
+
+Observed error (from core functional log, emitted by aider's
+underlying litellm via the OpenRouter route):
+
+```
+APIError: OpenrouterException - This request requires more credits,
+or fewer max_tokens. You requested up to 64000 tokens, but can only
+afford 49423. To increase, visit https://openrouter.ai/settings/
+```
+
+Failure shapes in core:
+
+- **F17** (multi-wrapper pipeline, browser → ocr → aider → exec → msg):
+  aider fails with the 402 above, kiso's reviewer marks the task
+  for replan, the new plan writes the file via an exec task
+  (`cat > heredoc`). The file is produced correctly but the test
+  asserts Plan 3 is codegen-only and refuses the exec fallback.
+
+- **F29** (pure aider test): aider fails with the same 402, kiso
+  replans back to aider (because the goal explicitly requires
+  aider), each retry hits the same 402, the test times out.
+
+**Not credits exhaustion.** The user's OpenRouter balance is
+positive. The 402 is a per-request affordability cap:
+OpenRouter enforces
+`max_tokens_per_request ≤ balance / per_token_cost`. For
+high-max-output models (e.g. Claude Sonnet 4.x with
+`max_output_tokens = 64000`) on a moderate balance, a single
+call that requests the model's full max output exceeds what the
+current balance can fund in one shot, and OpenRouter rejects
+with the specific affordable ceiling embedded in the error
+message (`can only afford 49423`).
+
+**Why the wrapper hits 64000.** Aider reads `max_output_tokens`
+from the model's litellm settings and passes it as `max_tokens`
+on every completion call. It does not know about the
+balance-dependent per-request cap. Its built-in retry loop
+retries with the same `max_tokens`, so 402 loops forever.
+
+**Fix.** Detect the specific OpenRouter 402 error in aider's
+stderr after a failed run. Parse the affordable ceiling with a
+deterministic regex (`can only afford (\d+)`). Retry aider
+**exactly once** with `max_tokens` capped to that value, via
+aider's native per-run override mechanism. If the retry also
+fails (or the error is not from OpenRouter, or the format does
+not match the regex), fall through to the existing error path
+with no regression.
+
+**Mechanism for overriding aider's max_tokens.** To be confirmed
+during implementation. Candidate approaches, in order of
+preference:
+
+1. **Temporary `--model-settings-file`.** Write a temp YAML
+   containing the currently-configured model name with
+   `max_tokens: <cap>` and invoke aider with
+   `--model-settings-file <path>`. This is aider's documented
+   mechanism for per-model parameter overrides and is the
+   cleanest match.
+2. **litellm env var.** If there is a `LITELLM_*` or `AIDER_*`
+   environment variable that caps max_tokens per call, set it in
+   the retry subprocess env. Less clean but simpler if option 1
+   is not available on the installed aider version.
+3. **Diagnostic-only fallback.** If neither option 1 nor 2 works
+   on the installed aider, do not attempt a retry here. Instead
+   surface the parsed ceiling in the wrapper's stderr with a
+   clear message (e.g.
+   `aider cannot afford max_tokens N on this balance`) so that
+   kiso's reviewer and the functional tests can distinguish
+   the provider cap from generic aider failures. This is
+   strictly worse (F17/F29 still fail) but at least surfaces
+   the real cause upstream.
+
+Choose between options 1/2/3 based on what the installed aider
+version actually supports. Record the choice + the evidence in
+this milestone at completion.
+
+**Properties of the fix (option 1 or 2).**
+
+- **Structural, not a heuristic.** The cap comes from the
+  provider's own error message, not from a hard-coded constant
+  or a language-specific rule.
+- **Respects kiso-run/core's
+  `feedback_max_tokens_truncation.md` policy.** That policy
+  forbids *artificial* max_tokens caps. Here the cap is not
+  artificial — it is the provider's explicitly stated affordable
+  ceiling for this specific balance + model + moment. Accepting
+  a provider-declared limit is not inventing one.
+- **Deterministic regex parse.** Zero LLM, zero guessing. If
+  the format ever changes and the regex stops matching, the
+  code falls through to the existing error path — no
+  regression.
+- **One retry only.** No retry storm, no loop. If the first
+  retry with the cap also fails, something else is wrong and
+  the wrapper exits with the original error.
+- **Zero impact on the successful path.** The parser and retry
+  branch only run when the first aider invocation exits non-zero
+  AND stderr matches the OpenRouter 402 format.
+- **Generalist.** Any OpenRouter call from aider that hits the
+  per-request cap now adapts automatically — regardless of
+  which model, which balance, which request size. Not
+  overfitted to F17 / F29.
+- **F17 and F29 are both fixed transitively.** Aider no longer
+  loops on 402, so there is no replan fallback to exec (F17
+  Plan 3 stays codegen-only) and no retry storm (F29 completes
+  without the outer timeout firing). No changes to the core
+  tests required.
+
+**Tasks.**
+
+- [ ] Verify the exact aider CLI / config mechanism for
+      overriding `max_tokens` per run on the installed aider
+      version (try option 1: `--model-settings-file` first)
+- [ ] Implement the parser:
+      `_parse_openrouter_affordable_cap(stderr: str) -> int | None`
+      with the regex `r'can only afford (\d+)'`; returns None
+      on any miss (empty stderr, different error, format change)
+- [ ] Implement the retry branch in `run.py`: after the first
+      `run_aider` call, if exit != 0 AND the parser returns an
+      int, build a temp model-settings-file (option 1) or set
+      the appropriate env var (option 2) and invoke aider once
+      more; on any other condition, fall through to the existing
+      error path unchanged
+- [ ] Unit tests:
+    - [ ] 402 + unparseable format → no retry, original error
+          surfaces
+    - [ ] non-402 error → no retry, original error surfaces
+    - [ ] 402 + parseable cap + successful retry → run_aider
+          called twice, second call carries the correct
+          override, final exit 0
+    - [ ] 402 + parseable cap + retry also fails → both calls
+          made, wrapper exits with the original 402 error (not
+          the retry error)
+- [ ] Run full wrapper-aider suite
+- [ ] Commit & push
+- [ ] Cross-repo: notify the corresponding
+      kiso-run/core M1331 entry and re-run the core
+      functional + extended suites when LLM credits are
+      available; confirm F17 Plan 3 stays codegen-only and
+      F29 completes without timeout
+
+**Done when.** The OpenRouter per-request cap error is handled
+by this wrapper with a single provider-informed retry. When a
+kiso-run/core functional / extended suite run is next performed,
+F17 and F29 pass without any changes on the core side. The
+chosen override mechanism (option 1, 2, or 3) is recorded in
+this milestone with the rationale and the aider version it was
+verified against.
