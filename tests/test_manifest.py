@@ -30,5 +30,5 @@ def test_required_sections_exist():
     with open(KISO_TOML, "rb") as f:
         data = tomllib.load(f)
     assert "kiso" in data
-    assert "tool" in data["kiso"]
+    assert "wrapper" in data["kiso"]
     assert "args" in data["kiso"]["wrapper"]
