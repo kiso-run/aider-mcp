@@ -5,6 +5,7 @@ import re
 import signal
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import tomllib
@@ -17,6 +18,22 @@ _PROVIDER_KEY_VARS = {
     "anthropic": "ANTHROPIC_API_KEY",
     "deepseek": "DEEPSEEK_API_KEY",
 }
+
+
+# Regex for the OpenRouter 402 per-request affordable-cap error.
+# OpenRouter enforces max_tokens_per_request ≤ balance/per_token_cost
+# and reports the affordable ceiling in the error text. When aider
+# requests the full model max (typically 64k for high-max models)
+# and the balance does not cover it, OpenRouter rejects with:
+#   "You requested up to X tokens, but can only afford Y"
+# The wrapper parses Y to retry once with max_tokens capped to Y.
+_AFFORDABLE_CAP_RE = re.compile(r"can only afford (\d+)")
+
+
+# Model-name keys in config.toml that identify which aider model
+# entries need a per-run max_tokens override when the affordable-cap
+# retry fires.
+_CONFIG_MODEL_KEYS = ("architect_model", "editor_model", "weak_model")
 
 
 def run(args: dict, context: dict) -> str:
@@ -56,6 +73,22 @@ def run(args: dict, context: dict) -> str:
     parts.append("")  # blank line after header
 
     result = run_aider(cmd, env)
+
+    # If aider hit the OpenRouter per-request affordable-cap error,
+    # retry ONCE with a model-settings file that caps max_tokens to
+    # the affordable ceiling the provider reported. The cap value
+    # comes from the provider, not from a hard-coded constant, so
+    # this respects the project policy against artificial caps.
+    if result.returncode != 0:
+        cap = _parse_openrouter_affordable_cap(result.stderr)
+        if cap is not None:
+            override_path = _build_model_settings_override(
+                config, cap=cap, tmp_dir=None,
+            )
+            if override_path is not None:
+                retry_cmd = cmd + ["--model-settings-file", override_path]
+                result = run_aider(retry_cmd, env)
+
     output = strip_ansi(result.stdout)
     if output.strip():
         parts.append(output)
@@ -70,6 +103,84 @@ def run(args: dict, context: dict) -> str:
         sys.exit(1)
 
     return "\n".join(parts)
+
+
+def _parse_openrouter_affordable_cap(stderr: str | None) -> int | None:
+    """Parse the affordable-tokens ceiling from an OpenRouter 402 error.
+
+    Returns the integer N from the phrase "can only afford N" in
+    *stderr*, or None if the phrase is absent / malformed / stderr
+    is empty. The first match wins when multiple occurrences exist.
+    The parser is intentionally narrow: it only fires on this
+    specific OpenRouter error shape, so any other failure mode
+    (including a format change on OpenRouter's side) is silently a
+    no-op and falls through to the existing error path with no
+    regression.
+    """
+    if not stderr:
+        return None
+    match = _AFFORDABLE_CAP_RE.search(stderr)
+    if match is None:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _build_model_settings_override(
+    config: dict,
+    cap: int,
+    tmp_dir: Path | None,
+) -> str | None:
+    """Write a temporary aider model-settings YAML that caps max_tokens.
+
+    Aider's ``register_models`` fully replaces any existing entry for
+    a model name it already knows, so the override file must stand
+    on its own. It contains one entry per configured model name
+    (architect/editor/weak), each with ``extra_params.max_tokens``
+    set to *cap*. The returned path can be passed to aider via
+    ``--model-settings-file``.
+
+    Returns None when no model names are configured — in that case
+    aider is using its own defaults and we cannot target specific
+    entries, so retrying would not change the outcome.
+    """
+    seen: set[str] = set()
+    entries: list[dict] = []
+    for key in _CONFIG_MODEL_KEYS:
+        name = config.get(key)
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        entries.append({
+            "name": name,
+            "extra_params": {"max_tokens": cap},
+        })
+    if not entries:
+        return None
+
+    # Minimal hand-written YAML so the wrapper stays dependency-free.
+    # Aider loads this with yaml.safe_load, which accepts this shape.
+    lines: list[str] = []
+    for entry in entries:
+        lines.append(f"- name: {entry['name']}")
+        lines.append("  extra_params:")
+        lines.append(f"    max_tokens: {entry['extra_params']['max_tokens']}")
+    content = "\n".join(lines) + "\n"
+
+    fd, path = tempfile.mkstemp(
+        prefix="aider-cap-",
+        suffix=".yml",
+        dir=str(tmp_dir) if tmp_dir is not None else None,
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
+    except Exception:
+        os.unlink(path)
+        raise
+    return path
 
 
 def load_config() -> dict:
