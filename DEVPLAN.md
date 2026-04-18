@@ -1,6 +1,65 @@
-# tool-aider — Dev Plan
+# kiso-aider-mcp — Dev Plan
 
-## Overview
+## Status
+
+**Legacy wrapper era — closed** (M1-M10 below).
+Everything M1 through M10 describes the previous `tool-aider` /
+`wrapper-aider` subprocess-contract implementation, superseded by the
+MCP rewrite tracked below.
+
+**Current era: MCP server** (see `kiso-run/core` v0.10 devplan M1507).
+The MCP rewrite lives at `src/kiso_aider_mcp/` and exposes two tools
+(`aider_codegen`, `doctor`) over the standard Model Context Protocol
+via the official `mcp` Python SDK. All old wrapper files (`run.py`,
+`kiso.toml`, `deps.sh`, `config.example.toml`, `validator.py`) and
+their tests have been removed in a single rewrite commit.
+
+---
+
+## v0.1 — MCP rewrite (2026-04-18)
+
+Tracked in `kiso-run/core` as milestone **M1507**.
+
+- [x] Strip legacy wrapper files (run.py, kiso.toml, deps.sh,
+      config.example.toml, validator.py)
+- [x] New `pyproject.toml` with package name `kiso-aider-mcp`, MCP
+      SDK dependency, console script entry point
+- [x] `src/kiso_aider_mcp/aider_runner.py` — subprocess wrapper around
+      the aider CLI (port of the original execution logic, narrowed to
+      OpenRouter-only per the single-key invariant)
+- [x] `src/kiso_aider_mcp/server.py` — FastMCP server exposing
+      `aider_codegen` and `doctor` tools
+- [x] `tests/test_aider_runner.py` — 25 unit tests (command assembly,
+      env wiring, subprocess mocking, affordable-cap retry, doctor)
+- [x] `tests/test_server.py` — 8 tests for MCP tool registration +
+      delegation
+- [x] `tests/test_live.py` — end-to-end test against a tiny fixture
+      repo, gated on `OPENROUTER_API_KEY`
+- [x] README rewrite (MCP install, tools, env, client config)
+- [ ] Cut `v0.1.0` tag on GitHub (user action)
+- [ ] Sanity check from `kiso/core`: a bare `mcp.json` with
+      `uvx --from git+https://github.com/kiso-run/aider-mcp@v0.1.0 kiso-aider-mcp`
+      connects and exposes the tools
+
+**Design differences from the wrapper era**:
+
+- **Single key**: only `OPENROUTER_API_KEY`. Dropped the
+  per-provider key matrix (OPENAI / ANTHROPIC / DEEPSEEK). Aider still
+  supports those providers via its own config, but this MCP server is
+  built on top of the default-preset single-key invariant.
+- **Structured return**: `{success, diff, output, stderr}` instead of
+  a plaintext stdout blob. The caller owns staging/committing — aider
+  runs with `--no-auto-commits`.
+- **No `config.toml`**: model selection is via the `model` tool arg
+  (or aider's defaults). Runtime configuration lives in MCP client
+  config, not in a tool-local TOML file.
+
+The paragraph below was written for the wrapper era and is kept for
+historical record; do not use it to guide current work.
+
+---
+
+## Overview *(historical)*
 
 Code editing tool for kiso that wraps [aider](https://aider.chat/) as a subprocess.
 Provides architect, code, and ask modes for LLM-driven code changes within kiso sessions.

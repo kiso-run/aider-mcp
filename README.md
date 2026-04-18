@@ -1,87 +1,130 @@
-# tool-aider
+# kiso-aider-mcp
 
-Code editing tool for [kiso](https://github.com/kiso-run/core), powered by [aider](https://aider.chat). Supports any LLM backend via OpenRouter, OpenAI, Anthropic, DeepSeek, or a custom endpoint.
+[aider](https://aider.chat) codegen exposed as a
+[Model Context Protocol](https://modelcontextprotocol.io) server.
 
-## Installation
+Runs aider as a subprocess against the configured workspace and returns
+a structured `{success, diff, output, stderr}` payload. The caller owns
+staging and committing — aider runs with `--no-auto-commits`.
 
-```sh
-kiso tool install aider
-```
+Part of the [`kiso-run`](https://github.com/kiso-run) project. Works
+with any MCP client; consumed in particular by
+[`kiso-run/core`](https://github.com/kiso-run/core).
 
-This clones the repo to `~/.kiso/tools/aider/`, runs `uv sync`, and copies `config.example.toml` → `config.toml`.
+## Install
 
-## Configuration
-
-### API key
-
-If `KISO_LLM_API_KEY` is already set (the shared kiso LLM key), aider uses it automatically -- no extra configuration needed.
-
-To use a separate key for aider (overrides the shared key):
+No PyPI publishing. Consume directly from GitHub via `uvx`:
 
 ```sh
-kiso env set KISO_TOOL_AIDER_API_KEY "<aider-specific-key>"
-kiso env reload
+uvx --from git+https://github.com/kiso-run/aider-mcp@v0.1.0 kiso-aider-mcp
 ```
 
-### Config file
+`uv` caches the clone; pin to a tag (`v0.1.0`, `v0.2.0`, …) for
+reproducibility.
 
-Edit `~/.kiso/tools/aider/config.toml` to set the provider, models, and mode. The defaults use OpenRouter with architect mode (GLM-5 as architect, DeepSeek v3.2 as editor).
+## Required environment
 
-## Supported providers
+| Variable              | Required | Purpose                                  |
+|-----------------------|----------|------------------------------------------|
+| `OPENROUTER_API_KEY`  | yes      | aider backend via OpenRouter             |
 
-| Provider | Config value | Env var set by run.py |
-|---|---|---|
-| OpenRouter (default) | `openrouter` | `OPENROUTER_API_KEY` |
-| OpenAI | `openai` | `OPENAI_API_KEY` |
-| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
-| DeepSeek | `deepseek` | `DEEPSEEK_API_KEY` |
-| Custom endpoint | any + `api_base` | `OPENAI_API_KEY` + `OPENAI_API_BASE` |
+Single-key by design: OpenRouter fronts every supported LLM provider.
+No fallback to raw OpenAI / Anthropic / DeepSeek env vars — the
+single-key invariant is documented in the `kiso-run/core` v0.10
+devplan.
+
+## MCP client config
+
+Minimal entry for an MCP client (`mcp.json` shape):
+
+```json
+{
+  "mcpServers": {
+    "aider": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/kiso-run/aider-mcp@v0.1.0",
+        "kiso-aider-mcp"
+      ],
+      "env": { "OPENROUTER_API_KEY": "${env:OPENROUTER_API_KEY}" }
+    }
+  }
+}
+```
+
+## Tools
+
+### `aider_codegen`
+
+Edit code with aider and return the resulting git diff.
+
+| Parameter         | Type           | Default       | Notes                                            |
+|-------------------|----------------|---------------|--------------------------------------------------|
+| `prompt`          | string         | required      | Instruction for aider                            |
+| `editable_files`  | list[string]   | `[]`          | Files aider may modify                           |
+| `readonly_files`  | list[string]   | `[]`          | Files aider may read but not modify              |
+| `model`           | string         | aider default | e.g. `openrouter/anthropic/claude-sonnet-4.6`    |
+| `mode`            | string         | `"architect"` | `"architect"`, `"code"`, or `"ask"`              |
+
+Returns:
+
+```json
+{
+  "success": true,
+  "diff":    "--- a/foo.py\n+++ b/foo.py\n@@ ...",
+  "output":  "aider stdout (ANSI-stripped)",
+  "stderr":  ""
+}
+```
+
+The diff is captured with `git diff` in the server's working directory
+after aider finishes. `--no-auto-commits` is always forced, so the
+changes live in the working tree until the caller stages/commits them.
+
+### `doctor`
+
+Health check. Returns:
+
+```json
+{
+  "healthy": true,
+  "issues":  [],
+  "version": "aider 0.86.2"
+}
+```
+
+`healthy` is `false` if the `aider` binary is missing or
+`OPENROUTER_API_KEY` is not set; `issues` enumerates each.
 
 ## Modes
 
-| Mode | Description |
-|---|---|
-| **architect** (default) | Two models: architect plans changes, editor applies them |
-| **code** | Single model edits files directly |
-| **ask** | Read-only — answers questions about code without making changes |
+| Mode          | When to use                                                  |
+|---------------|--------------------------------------------------------------|
+| `architect`   | Complex edits. Planner model designs, editor model applies   |
+| `code`        | Direct single-model edits; faster, cheaper                   |
+| `ask`         | Read-only Q&A about code; aider makes no changes             |
 
-## How it works
+## Reliability
 
-1. The kiso planner decides to use the `aider` tool and provides a message and file list
-2. `run.py` is invoked as a subprocess with JSON on stdin
-3. aider edits files in the session workspace and commits the changes
-4. The output (aider's response) is returned to the kiso reviewer
-
-## Args reference
-
-| Arg | Required | Description |
-|---|---|---|
-| `message` | yes | Instruction or question for aider |
-| `files` | no | Comma-separated file paths to edit |
-| `mode` | no | `architect` (default), `code`, or `ask` |
-| `read_only_files` | no | Comma-separated files for read-only context |
-
-## Config reference
-
-| Key | Default | Description |
-|---|---|---|
-| `provider` | `openrouter` | LLM provider (`openrouter`, `openai`, `anthropic`, `deepseek`) |
-| `api_base` | — | Custom base URL for self-hosted or proxy endpoints |
-| `mode` | `architect` | Default mode when not specified in args |
-| `architect_model` | `openrouter/z-ai/glm-5` | Model for the architect role |
-| `editor_model` | `openrouter/deepseek/deepseek-v3.2` | Model for the editor role |
-| `weak_model` | `openrouter/deepseek/deepseek-v3.2` | Weak/cheap model for minor tasks |
-| `map_tokens` | `4096` | Token budget for the repo map |
-| `editor_edit_format` | `udiff` | Edit format used by the editor model in architect mode |
-| `auto_commits` | `true` | Whether aider commits changes automatically |
-| `commit_language` | `en` | Language for commit messages |
+- **OpenRouter affordable-cap retry**: when OpenRouter returns a 402
+  with `can only afford N tokens`, the server retries once with
+  `--model-settings-file` capping `max_tokens` to `N`. No extra knobs
+  to configure.
 
 ## Development
 
 ```sh
-uv run --group dev pytest tests/ -v
+# Install deps
+uv sync
+
+# Unit tests (no network)
+uv run pytest tests/ -q
+
+# Include the live test (real aider + OpenRouter round-trip)
+OPENROUTER_API_KEY=sk-... uv run pytest tests/ -q -m live
 ```
 
 ## License
 
-MIT
+MIT (see `LICENSE`).
