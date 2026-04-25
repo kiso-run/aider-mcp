@@ -170,14 +170,35 @@ Part A (`kiso-run/aider-mcp`):
 - [x] `pyproject.toml` bumped to `0.2.0`. Suite 41/41 green.
 - [ ] Cut `v0.2.0` tag (user action — `git tag v0.2.0`).
 
-Part B (`kiso-run/core`, new milestone M1560 in v0.10-wip):
-- [ ] Identify the MCP call site in the worker (around the
-      `tools/call` dispatch). Insert the namespaced
-      setdefault-injection.
-- [ ] Unit tests for the injection (6 cases listed above).
-- [ ] Bump default preset to `aider-mcp@v0.2.0`.
-- [ ] (Optional) Live test asserting end-to-end injection on a
-      real OpenRouter run.
+Part B (`kiso-run/core`, tracked here per the operator's request):
+- [x] Identified the MCP call site in
+      `kiso/worker/mcp.py::_handle_mcp_task`, right after
+      args-shape normalisation and before pre-flight schema
+      validation. Inserted a namespaced `setdefault`-style
+      block that fires only when
+      `server_name == "kiso-aider"` and
+      `method_name == "aider_codegen"` and `args` is a dict.
+      Reads `ctx.config.models["planner"]` /
+      `ctx.config.models["worker"]` to fill the gaps.
+- [x] Unit tests in `tests/test_aider_injection.py` (6 cases):
+      both missing → both filled; architect-only → editor
+      filled; editor-only → architect filled; both present →
+      no change; different server → no injection;
+      `kiso-aider:doctor` (same server, different method) →
+      no injection.
+- [ ] **User action: cut `v0.2.0` tag on `kiso-run/aider-mcp`**
+      (`git tag v0.2.0 && git push --tags`). The aider-mcp
+      side is committed and pushed; only the tag remains.
+- [ ] **User action: bump default preset** to
+      `aider-mcp@v0.2.0` in `kiso/presets/default.mcp.json`
+      and the matching tests in `tests/test_presets_default.py`.
+      Held back from this change set because pushing it before
+      the tag exists would break `kiso init --preset default`
+      for fresh installs (uvx would resolve a non-existent
+      ref).
+- [ ] (Optional) Live test asserting end-to-end injection on
+      a real OpenRouter run, after the tag and preset bump
+      land.
 
 **Done when.**
 
