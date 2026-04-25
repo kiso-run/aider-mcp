@@ -64,18 +64,34 @@ async def test_aider_codegen_delegates_to_runner():
                 "prompt": "fix race",
                 "editable_files": ["a.py"],
                 "readonly_files": ["b.md"],
-                "model": "openrouter/x",
-                "mode": "code",
+                "architect_model": "openrouter/A",
+                "editor_model": "openrouter/E",
+                "mode": "architect",
             },
         )
     run.assert_called_once_with(
         prompt="fix race",
         editable_files=["a.py"],
         readonly_files=["b.md"],
-        model="openrouter/x",
-        mode="code",
+        architect_model="openrouter/A",
+        editor_model="openrouter/E",
+        model=None,
+        mode="architect",
     )
     assert _decode(result) == stub
+
+
+async def test_aider_codegen_schema_advertises_split_models():
+    """M11: the MCP tool surface must advertise architect_model +
+    editor_model so MCP introspection clients (briefer included) can
+    route them. Legacy `model` stays in the schema as the alias."""
+    from kiso_aider_mcp import server
+    tools = await server.mcp.list_tools()
+    codegen = next(t for t in tools if t.name == "aider_codegen")
+    props = codegen.inputSchema.get("properties", {})
+    assert "architect_model" in props
+    assert "editor_model" in props
+    assert "model" in props  # legacy alias preserved
 
 
 async def test_doctor_delegates_to_runner():

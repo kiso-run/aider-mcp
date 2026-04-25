@@ -50,7 +50,11 @@ class TestBuildCommand:
         assert cmd[idx + 1] == "ref.md"
 
     def test_model_override_adds_model_flag(self):
-        cmd = build_command(prompt="x", model="openrouter/anthropic/claude-4", mode="code")
+        cmd = build_command(
+            prompt="x",
+            architect_model="openrouter/anthropic/claude-4",
+            mode="code",
+        )
         idx = cmd.index("--model")
         assert cmd[idx + 1] == "openrouter/anthropic/claude-4"
 
@@ -77,6 +81,84 @@ class TestBuildCommand:
     def test_empty_prompt_raises(self):
         with pytest.raises(ValueError, match="prompt"):
             build_command(prompt="", mode="code")
+
+
+class TestArchitectEditorModelSplit:
+    """M11: distinct architect_model + editor_model parameters.
+
+    Aider's architect mode uses two LLMs internally — a planner and an
+    editor. The MCP surface should expose them separately so callers
+    (notably Kiso's runtime) can route each role to the right model.
+    """
+
+    def test_architect_model_emits_model_flag(self):
+        cmd = build_command(
+            prompt="x", architect_model="openrouter/A", mode="architect",
+        )
+        idx = cmd.index("--model")
+        assert cmd[idx + 1] == "openrouter/A"
+
+    def test_editor_model_emits_editor_model_flag_in_architect_mode(self):
+        cmd = build_command(
+            prompt="x",
+            architect_model="openrouter/A",
+            editor_model="openrouter/E",
+            mode="architect",
+        )
+        idx = cmd.index("--editor-model")
+        assert cmd[idx + 1] == "openrouter/E"
+
+    def test_editor_model_ignored_in_code_mode(self):
+        """editor_model is meaningless without --architect; drop it
+        silently rather than passing a useless flag."""
+        cmd = build_command(
+            prompt="x",
+            architect_model="openrouter/A",
+            editor_model="openrouter/E",
+            mode="code",
+        )
+        assert "--editor-model" not in cmd
+
+    def test_editor_model_ignored_in_ask_mode(self):
+        cmd = build_command(
+            prompt="x",
+            architect_model="openrouter/A",
+            editor_model="openrouter/E",
+            mode="ask",
+        )
+        assert "--editor-model" not in cmd
+
+    def test_editor_model_only_no_architect(self):
+        """Caller can override only the editor; aider keeps default
+        architect."""
+        cmd = build_command(
+            prompt="x", editor_model="openrouter/E", mode="architect",
+        )
+        assert "--model" not in cmd
+        idx = cmd.index("--editor-model")
+        assert cmd[idx + 1] == "openrouter/E"
+
+    def test_legacy_model_alias_maps_to_architect(self):
+        """`model` is the deprecated alias of `architect_model`."""
+        with pytest.warns(DeprecationWarning, match="architect_model"):
+            cmd = build_command(
+                prompt="x", model="openrouter/legacy", mode="architect",
+            )
+        idx = cmd.index("--model")
+        assert cmd[idx + 1] == "openrouter/legacy"
+
+    def test_architect_model_wins_over_legacy_model(self):
+        """Caller passing both: explicit architect_model takes precedence."""
+        with pytest.warns(DeprecationWarning):
+            cmd = build_command(
+                prompt="x",
+                architect_model="openrouter/new",
+                model="openrouter/old",
+                mode="architect",
+            )
+        idx = cmd.index("--model")
+        assert cmd[idx + 1] == "openrouter/new"
+        assert "openrouter/old" not in cmd
 
 
 class TestBuildEnv:
@@ -171,7 +253,7 @@ class TestRunAiderCodegen:
                 self._fake_completed(0, "ok", ""),
             ]
             result = run_aider_codegen(
-                prompt="x", mode="code", model="openrouter/x",
+                prompt="x", mode="code", architect_model="openrouter/x",
                 workspace=str(tmp_path),
             )
             assert result["success"] is True

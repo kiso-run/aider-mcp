@@ -64,8 +64,16 @@ Edit code with aider and return the resulting git diff.
 | `prompt`          | string         | required      | Instruction for aider                            |
 | `editable_files`  | list[string]   | `[]`          | Files aider may modify                           |
 | `readonly_files`  | list[string]   | `[]`          | Files aider may read but not modify              |
-| `model`           | string         | aider default | e.g. `openrouter/anthropic/claude-sonnet-4.6`    |
+| `architect_model` | string         | aider default | Architect (planner) LLM, e.g. `openrouter/anthropic/claude-sonnet-4.6`. Passed as `--model`. |
+| `editor_model`    | string         | aider default | Editor LLM in architect mode. Passed as `--editor-model`. Ignored in `code`/`ask`. |
+| `model`           | string         | —             | **Deprecated** alias of `architect_model`. If both set, `architect_model` wins. |
 | `mode`            | string         | `"architect"` | `"architect"`, `"code"`, or `"ask"`              |
+
+**Kiso integration**. When invoked from a Kiso runtime, `architect_model`
+defaults to `MODEL_DEFAULTS["planner"]` and `editor_model` defaults to
+`MODEL_DEFAULTS["worker"]`. The server itself never auto-selects a
+model — Kiso's runtime injects the defaults pre-call. Standalone or
+non-Kiso clients get aider's bundled defaults instead.
 
 Returns:
 

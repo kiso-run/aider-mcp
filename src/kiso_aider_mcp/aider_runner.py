@@ -21,6 +21,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 
 
@@ -33,6 +34,8 @@ def build_command(
     prompt: str,
     editable_files: list[str] | None = None,
     readonly_files: list[str] | None = None,
+    architect_model: str | None = None,
+    editor_model: str | None = None,
     model: str | None = None,
     mode: str = "architect",
 ) -> list[str]:
@@ -40,6 +43,17 @@ def build_command(
         raise ValueError("prompt must be a non-empty string")
     if mode not in _VALID_MODES:
         raise ValueError(f"unknown mode: {mode!r}; expected one of {_VALID_MODES}")
+
+    # `model` is the legacy alias of `architect_model`. Explicit
+    # `architect_model` always wins; bare `model` triggers a
+    # deprecation warning so callers know to migrate.
+    if model is not None:
+        warnings.warn(
+            "`model` is deprecated; use `architect_model` instead.",
+            DeprecationWarning, stacklevel=2,
+        )
+        if architect_model is None:
+            architect_model = model
 
     cmd: list[str] = [_aider_binary_path(), "--message", prompt]
 
@@ -49,8 +63,13 @@ def build_command(
         cmd.append("--ask")
     # "code" is aider's default — no flag needed.
 
-    if model:
-        cmd.extend(["--model", model])
+    if architect_model:
+        cmd.extend(["--model", architect_model])
+
+    # editor_model is only meaningful in architect mode (aider's two-model
+    # flow). Drop it silently in code/ask to avoid passing a useless flag.
+    if editor_model and mode == "architect":
+        cmd.extend(["--editor-model", editor_model])
 
     cmd.extend([
         "--yes",
@@ -86,6 +105,8 @@ def run_aider_codegen(
     prompt: str,
     editable_files: list[str] | None = None,
     readonly_files: list[str] | None = None,
+    architect_model: str | None = None,
+    editor_model: str | None = None,
     model: str | None = None,
     mode: str = "architect",
     workspace: str | None = None,
@@ -105,6 +126,8 @@ def run_aider_codegen(
             prompt=prompt,
             editable_files=editable_files,
             readonly_files=readonly_files,
+            architect_model=architect_model,
+            editor_model=editor_model,
             model=model,
             mode=mode,
         )
@@ -115,8 +138,12 @@ def run_aider_codegen(
 
     if result.returncode != 0:
         cap = _parse_openrouter_affordable_cap(result.stderr)
-        if cap is not None and model:
-            override = _build_model_settings_override(model=model, cap=cap)
+        # Affordable-cap retry targets the model that aider actually used.
+        # `architect_model` is what we passed via `--model`; legacy `model`
+        # is the same value at this point.
+        cap_target = architect_model or model
+        if cap is not None and cap_target:
+            override = _build_model_settings_override(model=cap_target, cap=cap)
             if override is not None:
                 retry_cmd = cmd + ["--model-settings-file", override]
                 result = _run_aider(retry_cmd, env, ws)

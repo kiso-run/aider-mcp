@@ -16,6 +16,181 @@ their tests have been removed in a single rewrite commit.
 
 ---
 
+## v0.2 — Architect / editor model split (M11, 2026-04-25)
+
+Tracked centrally here per the operator's request — the core-side
+injection task is documented below as a sibling block instead of
+splitting the work into two separate devplan entries.
+
+### M11 — Distinct architect / editor models, sourced from Kiso defaults
+
+**Why.** Aider's `architect` mode internally uses two LLMs: the
+*architect* (planner / decomposer) and the *editor* (the model that
+actually writes the patch). Today `aider-mcp` exposes a single
+`model: str | None` parameter; both roles end up using the same
+model — either the caller's override or aider's bundled default.
+This wastes architect mode's design intent, and means callers
+running on Kiso (where planner and worker are configured roles
+with their own carefully-chosen defaults) cannot route aider's
+two stages to those two models.
+
+**Goal.**
+
+1. `aider-mcp` exposes `architect_model` (renamed from the legacy
+   `model`) AND a new `editor_model`. `model` stays accepted as a
+   backward-compatible alias for `architect_model`.
+2. When the MCP server is invoked from Kiso, the Kiso runtime
+   automatically pre-fills `architect_model` with
+   `MODEL_DEFAULTS["planner"]` and `editor_model` with
+   `MODEL_DEFAULTS["worker"]` *if the caller did not specify them*.
+   Caller-supplied values always win.
+3. When the MCP server is invoked from any non-Kiso client, no
+   injection happens — aider falls back to its own bundled
+   defaults. No surprise model selection.
+
+**Approach.**
+
+The work splits cleanly into two repos:
+
+#### Part A — `kiso-run/aider-mcp` (this repo, new tag `v0.2.0`)
+
+- **Tool signature change** in `src/kiso_aider_mcp/server.py`:
+  ```python
+  def aider_codegen(
+      prompt: str,
+      editable_files: list[str] | None = None,
+      readonly_files: list[str] | None = None,
+      architect_model: str | None = None,
+      editor_model: str | None = None,
+      model: str | None = None,            # alias of architect_model (deprecated)
+      mode: str = "architect",
+  )
+  ```
+  If both `architect_model` and `model` are passed, `architect_model`
+  wins; if only `model` is passed, it maps to `architect_model`
+  (with a `DeprecationWarning` emitted to stderr).
+
+- **Command builder** in `src/kiso_aider_mcp/aider_runner.py`:
+  - Emit `--model {architect_model}` whenever `architect_model` is
+    set (any mode).
+  - Emit `--editor-model {editor_model}` whenever `mode=="architect"`
+    AND `editor_model` is set. In other modes the flag is silently
+    ignored to avoid passing a meaningless aider arg.
+  - Both flags are independent; you can set just one without the
+    other.
+
+- **Tests** (`tests/test_aider_runner.py` + `tests/test_server.py`):
+  - `build_command` emits `--editor-model` only in architect mode
+    AND only when supplied.
+  - `model` alias maps to `architect_model` and emits a deprecation
+    warning.
+  - When both `architect_model` and `model` are passed,
+    `architect_model` wins.
+  - `editor_model` without `architect_model` works (aider keeps its
+    default architect, just override editor).
+  - The MCP tool surface (FastMCP introspection) advertises the
+    two new parameters and keeps `model` as alias.
+
+- **README**: replace the single-`model` description with the
+  two-knob pattern. Document that callers running on Kiso don't
+  need to set them — Kiso fills them in.
+
+- **Tag**: cut `v0.2.0` after merge (user action; matches the
+  v0.1.0 release pattern).
+
+#### Part B — `kiso-run/core` (sibling repo, new milestone M1560 in v0.10-wip)
+
+**Where to inject.** Kiso executes MCP calls through its worker.
+The injection point is the place where the planner-emitted
+`task.args` is materialised into the actual MCP `tools/call`
+payload — directly before sending the call over the MCP transport.
+This keeps the planner prompt unchanged (the planner doesn't need
+to know its own model name) and keeps the rule deterministic.
+
+**Detection rule.** Inject only for MCP tasks whose
+`server == "kiso-aider"` AND `method == "aider_codegen"`. The
+rule is namespaced: every other MCP server is unaffected.
+
+**Injection logic** (pseudocode):
+```python
+if server == "kiso-aider" and method == "aider_codegen":
+    args.setdefault("architect_model", config.models["planner"])
+    args.setdefault("editor_model",    config.models["worker"])
+```
+
+`setdefault` semantics: caller wins, defaults fill the gap. If the
+user explicitly passed `architect_model="claude-sonnet-4.6"` in the
+prompt, the planner forwards it through `args`, and the injection
+leaves it alone.
+
+**Tests** (`kiso-run/core/tests/`):
+- `test_aider_injection.py` (new) covers:
+  - Both keys missing → both filled from `config.models`.
+  - `architect_model` present → only `editor_model` filled.
+  - `editor_model` present → only `architect_model` filled.
+  - Both present → no change.
+  - Different MCP server (e.g. `kiso-search:web_search`) → no
+    injection (negative test, ensures the rule is namespaced).
+- A live test that runs aider via MCP through Kiso and asserts
+  the request landed at `aider-mcp` carries
+  `architect_model == config.models["planner"]`. Optional —
+  could be deferred.
+
+**Compatibility window.** While `aider-mcp v0.1.0` is still in the
+preset, the injection sends `architect_model` and `editor_model`
+to a server that doesn't know them. FastMCP / pydantic will error
+on unknown args. Mitigation: **bump the preset to `v0.2.0`
+atomically with the M1560 commit** (one-line change in
+`plugins/default-preset/`). If the user is running an old preset
+manually, the failure surfaces as a clear MCP validation error
+mentioning the unknown parameter — better than silent fallback to
+single-model mode.
+
+**Tasks.**
+
+Part A (`kiso-run/aider-mcp`):
+- [x] `server.py`: new signature with `architect_model` +
+      `editor_model` and the `model` alias.
+- [x] `aider_runner.py::build_command`: emit `--model` and
+      `--editor-model` independently per the rules above.
+- [x] `aider_runner.py::run_aider_codegen`: pass through both
+      params; affordable-cap retry now targets
+      `architect_model or model` so the legacy callers still
+      get the cap recovery.
+- [x] Unit tests: 7 cases in `TestArchitectEditorModelSplit`
+      covering architect-only, editor-only-needs-architect-mode,
+      editor-ignored-in-code-mode, editor-ignored-in-ask-mode,
+      editor-only, legacy `model` alias warning, and
+      architect-wins-over-legacy. `test_server.py` extended
+      with `test_aider_codegen_schema_advertises_split_models`
+      and updated delegation test.
+- [x] README updated with new parameter table and the
+      "Kiso integration" call-out explaining the runtime-side
+      injection contract.
+- [x] `pyproject.toml` bumped to `0.2.0`. Suite 41/41 green.
+- [ ] Cut `v0.2.0` tag (user action — `git tag v0.2.0`).
+
+Part B (`kiso-run/core`, new milestone M1560 in v0.10-wip):
+- [ ] Identify the MCP call site in the worker (around the
+      `tools/call` dispatch). Insert the namespaced
+      setdefault-injection.
+- [ ] Unit tests for the injection (6 cases listed above).
+- [ ] Bump default preset to `aider-mcp@v0.2.0`.
+- [ ] (Optional) Live test asserting end-to-end injection on a
+      real OpenRouter run.
+
+**Done when.**
+
+- aider-mcp `v0.2.0` is tagged with the two-knob signature.
+- A fresh Kiso install routes architect → `MODEL_DEFAULTS["planner"]`
+  and editor → `MODEL_DEFAULTS["worker"]` automatically when no
+  override is given.
+- Caller-side overrides still work end-to-end.
+- Non-Kiso clients of aider-mcp continue to get aider's bundled
+  defaults — no implicit model injection from the server side.
+
+---
+
 ## v0.1 — MCP rewrite (2026-04-18)
 
 Tracked in `kiso-run/core` as milestone **M1507**.

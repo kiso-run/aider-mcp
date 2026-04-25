@@ -1,6 +1,6 @@
 [project]
 name = "kiso-aider-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "aider codegen as a Model Context Protocol server"
 readme = "README.md"
 license = { file = "LICENSE" }
