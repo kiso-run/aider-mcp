@@ -168,7 +168,7 @@ Part A (`kiso-run/aider-mcp`):
       "Kiso integration" call-out explaining the runtime-side
       injection contract.
 - [x] `pyproject.toml` bumped to `0.2.0`. Suite 41/41 green.
-- [ ] Cut `v0.2.0` tag (user action — `git tag v0.2.0`).
+- [ ] Cut `v0.2.0` tag (user action — `git tag v0.2.0 && git push --tags` by maintainer).
 
 Part B (`kiso-run/core`, tracked here per the operator's request):
 - [x] Identified the MCP call site in
@@ -188,15 +188,15 @@ Part B (`kiso-run/core`, tracked here per the operator's request):
       no injection.
 - [ ] **User action: cut `v0.2.0` tag on `kiso-run/aider-mcp`**
       (`git tag v0.2.0 && git push --tags`). The aider-mcp
-      side is committed and pushed; only the tag remains.
+      side is committed and pushed; only the tag remains. *Manual maintainer action — not autonomously executable.*
 - [ ] **User action: bump default preset** to
       `aider-mcp@v0.2.0` in `kiso/presets/default.mcp.json`
       and the matching tests in `tests/test_presets_default.py`.
       Held back from this change set because pushing it before
       the tag exists would break `kiso init --preset default`
       for fresh installs (uvx would resolve a non-existent
-      ref).
-- [ ] (Optional) Live test asserting end-to-end injection on
+      ref). *Cross-repo work in `kiso/core` — out of scope for autonomous execution within this plugin's repo.*
+- [ ] (Optional) Live test asserting end-to-end injection on *— marked optional in original plan; not blocking and not autonomously prioritised.*
       a real OpenRouter run, after the tag and preset bump
       land.
 
@@ -232,10 +232,10 @@ Tracked in `kiso-run/core` as milestone **M1507**.
 - [x] `tests/test_live.py` — end-to-end test against a tiny fixture
       repo, gated on `OPENROUTER_API_KEY`
 - [x] README rewrite (MCP install, tools, env, client config)
-- [ ] Cut `v0.1.0` tag on GitHub (user action)
+- [ ] ~~Cut `v0.1.0` tag on GitHub (user action)~~ — superseded by v0.2.0 release flow above; if v0.1.0 is still wanted as an intermediate tag, maintainer action: `git tag v0.1.0 <commit-sha>`
 - [ ] Sanity check from `kiso/core`: a bare `mcp.json` with
       `uvx --from git+https://github.com/kiso-run/aider-mcp@v0.1.0 kiso-aider-mcp`
-      connects and exposes the tools
+      connects and exposes the tools *— cross-repo verification in `kiso/core`; out of scope for autonomous execution within this plugin's repo.*
 
 **Design differences from the wrapper era**:
 
@@ -443,15 +443,20 @@ signal to the aider child process. No test verifies this behavior:
 
 ---
 
-### M9 — Declare `consumes` in kiso.toml (core M826)
+### M9 — Declare `consumes` in kiso.toml (core M826) — OBSOLETE
 
 **Context:** Core M826 adds a `consumes` field to `[kiso.tool]` in kiso.toml. The planner uses
 this to auto-route session workspace files to the right tool. Vocabulary: `image`, `document`,
 `audio`, `video`, `code`, `web_page`.
 
-**Changes:**
-- [x] Add `consumes = ["code"]` to `[kiso.tool]` in kiso.toml
-- [ ] Enrich `usage_guide` with concrete file path examples for `files` and `read_only_files` args
+**Status:** **Obsolete — superseded by the MCP rewrite (v0.1).** The `kiso.toml` file no longer
+exists in this plugin (the MCP rewrite removed wrapper-era files). MCP servers expose tool
+metadata and usage guidance via the MCP protocol's own tool-schema declarations in
+`src/kiso_aider_mcp/server.py`, not via a `consumes` field in a `kiso.toml`. No action needed.
+
+**Original tasks (not applicable to MCP era):**
+- [x] ~~Add `consumes = ["code"]` to `[kiso.tool]` in kiso.toml~~ (file removed)
+- [x] ~~Enrich `usage_guide` with concrete file path examples for `files` and `read_only_files` args~~ (file removed; equivalent guidance now lives in the MCP tool descriptions in `src/kiso_aider_mcp/server.py` and in README.md)
 
 ---
 
@@ -638,7 +643,7 @@ needed because Option 1 is fully supported.
 - [ ] Cross-repo: notify the corresponding kiso-run/core M1331
       entry and re-run the core functional + extended suites
       when LLM credits are available; confirm F17 Plan 3 stays
-      codegen-only and F29 completes without timeout
+      codegen-only and F29 completes without timeout *— cross-repo work in `kiso/core` requiring LLM credits + functional suite run; out of scope for autonomous execution within this plugin's repo.*
 
 **Pre-existing unrelated failure note.** `tests/test_functional.py`
 fails with `PermissionError: [Errno 13] Permission denied:
